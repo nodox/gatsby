@@ -130,7 +130,7 @@ module.exports = async (config = {}) => {
   // Add internal plugins
   const internalPlugins = [
     `../../internal-plugins/dev-404-page`,
-    `../../internal-plugins/component-page-creator`,
+    `../../internal-plugins/component-page-creator`, // ???
     `../../internal-plugins/component-layout-creator`,
     `../../internal-plugins/internal-data-bridge`,
     `../../internal-plugins/prod-404`,
@@ -142,7 +142,7 @@ module.exports = async (config = {}) => {
   })
 
   // Add plugins from the site config.
-  if (config.plugins) {
+  if (config.plugins) { // ???
     config.plugins.forEach(plugin => {
       plugins.push(processPlugin(plugin))
     })
