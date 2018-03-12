@@ -1,7 +1,7 @@
 {
   "name": "gatsby-plugin-page-creator",
   "version": "1.0.0",
-  "description": "Stub description for gatsby-plugin-page-creator",
+  "description": "An internal Gatsby plugin that creates pages from component files in src/pages",
   "main": "index.js",
   "scripts": {
     "build": "babel src --out-dir . --ignore __tests__",
@@ -11,7 +11,7 @@
   "keywords": [
     "gatsby"
   ],
-  "author": "tektekpush@gmail.com",
+  "author": "Steven Natera <tektekpush@gmail.com>",
   "license": "MIT",
   "dependencies": {
     "babel-runtime": "^6.26.0"
