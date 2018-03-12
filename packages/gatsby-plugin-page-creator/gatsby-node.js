@@ -16,13 +16,13 @@ const validatePath = require(`./validate-path`)
 // takes control of that page component in gatsby-node.
 exports.createPagesStatefully = async (
   { store, boundActionCreators },
-  options,
+  pluginOptions,
   doneCb
 ) => {
   const { createPage, deletePage } = boundActionCreators
   const program = store.getState().program
   const exts = program.extensions.map(e => `${e.slice(1)}`).join(`,`)
-  const pagesDirectory = systemPath.posix.join(program.directory, `/src/pages`)
+  const pagesDirectory = systemPath.posix.join(program.directory, pluginOptions.path)
   const pagesGlob = `${pagesDirectory}/**/*.{${exts}}`
 
   // Get initial list of files.
