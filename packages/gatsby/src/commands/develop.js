@@ -241,6 +241,13 @@ async function startServer(program) {
     socket.to(`clients`).emit(`reload`)
   })
 
+  // We can watch the theme file
+  chokidar.watch(`gatsby-themes.js`).on(`change`, async () => {
+    console.log('change to file')
+
+    socket.emit(`themes`)
+  })
+
   return [compiler, listener]
 }
 
