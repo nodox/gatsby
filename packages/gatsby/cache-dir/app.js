@@ -16,6 +16,10 @@ apiRunnerAsync(`onClientEntry`).then(() => {
     socket.on(`reload`, () => {
       window.location.reload()
     })
+
+    socket.on(`themes`, () => {
+      console.log('Response to theme change');
+    })
   }
 
   /**
