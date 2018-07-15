@@ -16,7 +16,8 @@ const handlerP = fn => (...args) => {
 
 function buildLocalCommands(cli, isLocalSite) {
   const defaultHost = `localhost`
-  const directory = path.resolve(`.`)
+  // const directory = path.resolve('.')
+  const directory = path.resolve('.','themes','using-themes-pkg')
 
   let siteInfo = { directory, browserslist: DEFAULT_BROWSERS }
   const useYarn = existsSync(path.join(directory, `yarn.lock`))
