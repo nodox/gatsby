@@ -25,6 +25,7 @@ const sourceNodes = require(`../utils/source-nodes`)
 const websocketManager = require(`../utils/websocket-manager`)
 const getSslCert = require(`../utils/get-ssl-cert`)
 const slash = require(`slash`)
+const path = require(`path`)
 const { initTracer } = require(`../utils/tracer`)
 
 // const isInteractive = process.stdout.isTTY
@@ -47,6 +48,23 @@ rlInterface.on(`SIGINT`, () => {
 })
 
 async function startServer(program) {
+  console.log(`============ nodox, develop:`, program);
+  const themeConfigPath = path.resolve(program.directory, `gatsby-themes.js`)
+  const themeConfigStream = fs.createWriteStream(themeConfigPath);
+  const log = {
+    module: {
+      exports: {
+        color: 'red'
+      }
+    }
+  }
+  const file = `module.exports = { color: 'purple' }`
+  const logBuf = new Buffer.from(file);
+  themeConfigStream.write(logBuf)
+  themeConfigStream.end();
+
+
+
   const directory = program.directory
   const directoryPath = withBasePath(directory)
   const createIndexHtml = () =>
