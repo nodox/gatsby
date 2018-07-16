@@ -1,0 +1,11 @@
+{
+  "themeDirectory": "themes",
+  "defaultTheme": "using-themes-pkg",
+  "themes": {
+    "using-themes-pkg": {
+      "header": {
+        "background": "green"
+      }
+    }
+  }
+}

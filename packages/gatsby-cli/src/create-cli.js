@@ -16,8 +16,13 @@ const handlerP = fn => (...args) => {
 
 function buildLocalCommands(cli, isLocalSite) {
   const defaultHost = `localhost`
-  // const directory = path.resolve('.')
-  const directory = path.resolve('.','themes','using-themes-pkg')
+  let directory = path.resolve('.')
+
+  const useTheme = existsSync(path.join(directory, `gatsby-themes.json`))
+  if (useTheme) {
+    const currentThemeConfig = require(path.join(directory, `gatsby-themes.json`))
+    directory = path.resolve('.', currentThemeConfig.themeDirectory, currentThemeConfig.defaultTheme)
+  }
 
   let siteInfo = { directory, browserslist: DEFAULT_BROWSERS }
   const useYarn = existsSync(path.join(directory, `yarn.lock`))
@@ -71,7 +76,8 @@ function buildLocalCommands(cli, isLocalSite) {
       report.verbose(`set gatsby_executing_command: "${command}"`)
 
       let localCmd = resolveLocalCommand(command)
-      let args = { ...argv, ...siteInfo, useYarn }
+      let parentDirectory = path.resolve('.')
+      let args = { ...argv, ...siteInfo, useYarn, parentDirectory }
 
       report.verbose(`running command: ${command}`)
       return handler ? handler(args, localCmd) : localCmd(args)

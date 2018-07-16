@@ -2,7 +2,7 @@
 
 const url = require(`url`)
 const glob = require(`glob`)
-const fs = require(`fs`)
+const fs = require(`fs-extra`)
 const chokidar = require(`chokidar`)
 const express = require(`express`)
 const graphqlHTTP = require(`express-graphql`)
@@ -49,18 +49,33 @@ rlInterface.on(`SIGINT`, () => {
 
 async function startServer(program) {
   console.log(`============ nodox, develop:`, program);
-  const themeConfigPath = path.resolve(program.directory, `theme.json`)
-  const themeConfigStream = fs.createWriteStream(themeConfigPath);
-  const theme = {
-    header: {
-      background: 'blue'
-    }
-  }
+  var gatsbyThemesConfigPath = path.resolve(program.parentDirectory, `gatsby-themes.json`)
+  var childThemeConfigPath = path.resolve(program.directory, `theme.json`)
 
-  const logBuf = new Buffer.from(JSON.stringify(theme));
-  themeConfigStream.write(logBuf)
-  themeConfigStream.end();
+  var gatsbyThemesConfig = await fs.readJson(gatsbyThemesConfigPath)
 
+  var childThemeConfig = gatsbyThemesConfig['themes'][gatsbyThemesConfig.defaultTheme]
+  var childThemeConfigWritableStream = fs.createWriteStream(childThemeConfigPath)
+  var childThemeConfigBuffer = new Buffer.from(JSON.stringify(childThemeConfig))
+
+  childThemeConfigWritableStream.write(childThemeConfigBuffer)
+  childThemeConfigWritableStream.end()
+
+  chokidar.watch(gatsbyThemesConfigPath).on(`change`, async () => {
+    console.log('====== nodox, gatsby-themes.json changes');
+
+    var updatedGatsbyThemesConfig = await fs.readJson(gatsbyThemesConfigPath)
+
+    var updatedChildThemeConfig = updatedGatsbyThemesConfig['themes'][updatedGatsbyThemesConfig.defaultTheme]
+    var updatedChildThemeConfigWritableStream = fs.createWriteStream(childThemeConfigPath)
+    var updatedChildThemeConfigBuffer = new Buffer.from(JSON.stringify(updatedChildThemeConfig))
+
+    updatedChildThemeConfigWritableStream.write(updatedChildThemeConfigBuffer)
+    updatedChildThemeConfigWritableStream.end()
+
+    await createIndexHtml()
+    socket.to(`clients`).emit(`reload`)
+  })
 
 
   const directory = program.directory
@@ -255,13 +270,6 @@ async function startServer(program) {
   chokidar.watch(watchGlobs).on(`change`, async () => {
     await createIndexHtml()
     socket.to(`clients`).emit(`reload`)
-  })
-
-  // We can watch the theme file
-  chokidar.watch(`gatsby-themes.js`).on(`change`, async () => {
-    console.log('change to file')
-
-    socket.emit(`themes`)
   })
 
   return [compiler, listener]
