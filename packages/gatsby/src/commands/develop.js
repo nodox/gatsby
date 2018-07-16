@@ -49,17 +49,15 @@ rlInterface.on(`SIGINT`, () => {
 
 async function startServer(program) {
   console.log(`============ nodox, develop:`, program);
-  const themeConfigPath = path.resolve(program.directory, `gatsby-themes.js`)
+  const themeConfigPath = path.resolve(program.directory, `theme.json`)
   const themeConfigStream = fs.createWriteStream(themeConfigPath);
-  const log = {
-    module: {
-      exports: {
-        color: 'red'
-      }
+  const theme = {
+    header: {
+      background: 'blue'
     }
   }
-  const file = `module.exports = { color: 'purple' }`
-  const logBuf = new Buffer.from(file);
+
+  const logBuf = new Buffer.from(JSON.stringify(theme));
   themeConfigStream.write(logBuf)
   themeConfigStream.end();
 

@@ -1,11 +1,12 @@
 import React from 'react'
 import { Link } from 'gatsby'
-import { color } from '../../gatsby-themes'
+import theme from '../../theme.json'
+
 
 const Header = ({ siteTitle }) => (
   <div
     style={{
-      background: color,
+      background: theme.header.background,
       marginBottom: '1.45rem',
     }}
   >
