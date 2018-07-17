@@ -3,7 +3,7 @@ const resolveCwd = require(`resolve-cwd`)
 const yargs = require(`yargs`)
 const report = require(`./reporter`)
 const envinfo = require(`envinfo`)
-const existsSync = require(`fs-exists-cached`).sync
+const fs = require(`fs`)
 
 const DEFAULT_BROWSERS = [`> 1%`, `last 2 versions`, `IE >= 9`]
 
@@ -15,10 +15,11 @@ const handlerP = fn => (...args) => {
 }
 
 function buildLocalCommands(cli, isLocalSite) {
+  console.log(`========= nodox, cli`);
   const defaultHost = `localhost`
   let directory = path.resolve('.')
 
-  const useTheme = existsSync(path.join(directory, `gatsby-themes.json`))
+  const useTheme = fs.existsSync(path.join(directory, `gatsby-themes.json`))
   if (useTheme) {
     const currentThemeConfig = require(path.join(directory, `gatsby-themes.json`))
     directory = path.resolve('.', currentThemeConfig.themeDirectory, currentThemeConfig.defaultTheme)
