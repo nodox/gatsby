@@ -1,6 +1,7 @@
 /* @flow */
 
 const url = require(`url`)
+const fs = require(`fs-extra`)
 const chokidar = require(`chokidar`)
 const express = require(`express`)
 const graphqlHTTP = require(`express-graphql`)
@@ -21,6 +22,7 @@ const chalk = require(`chalk`)
 const address = require(`address`)
 const sourceNodes = require(`../utils/source-nodes`)
 const getSslCert = require(`../utils/get-ssl-cert`)
+const path = require(`path`)
 
 // const isInteractive = process.stdout.isTTY
 
@@ -42,6 +44,20 @@ rlInterface.on(`SIGINT`, () => {
 })
 
 async function startServer(program) {
+  console.log(`============ nodox, develop:`, program);
+  var gatsbyThemesConfigPath = path.resolve(program.parentDirectory, `gatsby-themes.json`)
+  var childThemeConfigPath = path.resolve(program.directory, `theme.json`)
+
+  var gatsbyThemesConfig = await fs.readJson(gatsbyThemesConfigPath)
+
+  var childThemeConfig = gatsbyThemesConfig['themes'][gatsbyThemesConfig.defaultTheme]
+  var childThemeConfigWritableStream = fs.createWriteStream(childThemeConfigPath)
+  var childThemeConfigBuffer = new Buffer.from(JSON.stringify(childThemeConfig))
+
+  childThemeConfigWritableStream.write(childThemeConfigBuffer)
+  childThemeConfigWritableStream.end()
+
+
   const directory = program.directory
   const directoryPath = withBasePath(directory)
   const createIndexHtml = () =>
@@ -236,6 +252,22 @@ async function startServer(program) {
   const watchGlobs = [`src/html.js`, `plugins/**/gatsby-ssr.js`].map(path =>
     directoryPath(path)
   )
+
+  chokidar.watch(gatsbyThemesConfigPath).on(`change`, async () => {
+    console.log('====== nodox, gatsby-themes.json changes');
+
+    var updatedGatsbyThemesConfig = await fs.readJson(gatsbyThemesConfigPath)
+
+    var updatedChildThemeConfig = updatedGatsbyThemesConfig['themes'][updatedGatsbyThemesConfig.defaultTheme]
+    var updatedChildThemeConfigWritableStream = fs.createWriteStream(childThemeConfigPath)
+    var updatedChildThemeConfigBuffer = new Buffer.from(JSON.stringify(updatedChildThemeConfig))
+
+    updatedChildThemeConfigWritableStream.write(updatedChildThemeConfigBuffer)
+    updatedChildThemeConfigWritableStream.end()
+
+    await createIndexHtml()
+    io.to(`clients`).emit(`reload`)
+  })
 
   chokidar.watch(watchGlobs).on(`change`, async () => {
     await createIndexHtml()
