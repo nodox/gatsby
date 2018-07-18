@@ -248,6 +248,22 @@ async function startServer(program) {
     }
   })
 
+  const listener2 = server.listen(1738, program.host, err => {
+    if (err) {
+      if (err.code === `EADDRINUSE`) {
+        // eslint-disable-next-line max-len
+        report.panic(
+          `Unable to start Gatsby on port ${
+            program.port
+          } as there's already a process listing on that port.`
+        )
+        return
+      }
+
+      report.panic(`There was a problem starting the development server`, err)
+    }
+  })
+
   // Register watcher that rebuilds index.html every time html.js changes.
   const watchGlobs = [`src/html.js`, `plugins/**/gatsby-ssr.js`].map(path =>
     directoryPath(path)
@@ -257,6 +273,7 @@ async function startServer(program) {
     console.log('====== nodox, gatsby-themes.json changes');
 
     var updatedGatsbyThemesConfig = await fs.readJson(gatsbyThemesConfigPath)
+    console.log('====== nodox, theme change: ', updatedGatsbyThemesConfig);
 
     var updatedChildThemeConfig = updatedGatsbyThemesConfig['themes'][updatedGatsbyThemesConfig.defaultTheme]
     var updatedChildThemeConfigWritableStream = fs.createWriteStream(childThemeConfigPath)
@@ -274,7 +291,7 @@ async function startServer(program) {
     io.to(`clients`).emit(`reload`)
   })
 
-  return [compiler, listener]
+  return [compiler, listener, listener2]
 }
 
 module.exports = async (program: any) => {
