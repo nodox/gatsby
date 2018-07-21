@@ -62,19 +62,6 @@ function resolveLocalCommand(command, isLocalSite) {
   }
 }
 
-// function buildLocalCommands(cli, isLocalSite) {
-//   const defaultHost = `localhost`
-//   let directory = path.resolve('.')
-//
-//   let siteInfo = { directory, browserslist: DEFAULT_BROWSERS }
-//   const useYarn = fs.existsSync(path.join(directory, `yarn.lock`))
-//   if (isLocalSite) {
-//     const json = require(path.join(directory, `package.json`))
-//     siteInfo.sitePackageJson = json
-//     siteInfo.browserslist = json.browserslist || siteInfo.browserslist
-//   }
-// }
-
 function getCommandHandler(command, handler) {
   let directory = path.resolve('.')
   let isLocalSite = isLocalGatsbySite()
