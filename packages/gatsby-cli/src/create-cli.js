@@ -3,7 +3,7 @@ const resolveCwd = require(`resolve-cwd`)
 const yargs = require(`yargs`)
 const report = require(`./reporter`)
 const envinfo = require(`envinfo`)
-const fs = require(`fs`)
+const fs = require(`fs-extra`)
 
 const DEFAULT_BROWSERS = [`> 1%`, `last 2 versions`, `IE >= 9`]
 
@@ -14,16 +14,57 @@ const handlerP = fn => (...args) => {
   )
 }
 
+async function getThemePaths(directory) {
+  const isThemesConfigPresent = fs.existsSync(path.join(directory, `gatsby-themes.json`))
+  if (!isThemesConfigPresent) {
+    return null
+  }
+
+  let gatsbyThemesConfigPath = path.resolve(directory, `gatsby-themes.json`)
+  let gatsbyThemesConfig = await fs.readJson(gatsbyThemesConfigPath)
+  let themes = Object.keys(gatsbyThemesConfig.themes)
+  let paths = themes.map(name => {
+    let themePath = path.resolve('.', gatsbyThemesConfig.themeDirectory, name)
+    return themePath
+  })
+  return paths
+}
+
+function resolveLocalCommand(command, isLocalSite) {
+  if (!isLocalSite) {
+    cli.showHelp()
+    report.verbose(`current directory: ${directory}`)
+    return report.panic(
+      `gatsby <${command}> can only be run for a gatsby site. \n` +
+        `Either the current working directory does not contain a valid package.json or ` +
+        `'gatsby' is not specified as a dependency`
+    )
+  }
+
+  try {
+    const cmdPath =
+      resolveCwd.silent(`gatsby/dist/commands/${command}`) ||
+      // Old location of commands
+      resolveCwd.silent(`gatsby/dist/utils/${command}`)
+    if (!cmdPath)
+      return report.panic(
+        `There was a problem loading the local ${command} command. Gatsby may not be installed. Perhaps you need to run "npm install"?`
+      )
+
+    report.verbose(`loading local command from: ${cmdPath}`)
+    return require(cmdPath)
+  } catch (err) {
+    cli.showHelp()
+    return report.panic(
+      `There was a problem loading the local ${command} command. Gatsby may not be installed. Perhaps you need to run "npm install"?`,
+      err
+    )
+  }
+}
+
 function buildLocalCommands(cli, isLocalSite) {
-  console.log(`========= nodox, cli`);
   const defaultHost = `localhost`
   let directory = path.resolve('.')
-
-  const useTheme = fs.existsSync(path.join(directory, `gatsby-themes.json`))
-  if (useTheme) {
-    const currentThemeConfig = require(path.join(directory, `gatsby-themes.json`))
-    directory = path.resolve('.', currentThemeConfig.themeDirectory, currentThemeConfig.defaultTheme)
-  }
 
   let siteInfo = { directory, browserslist: DEFAULT_BROWSERS }
   const useYarn = fs.existsSync(path.join(directory, `yarn.lock`))
@@ -33,37 +74,7 @@ function buildLocalCommands(cli, isLocalSite) {
     siteInfo.browserslist = json.browserslist || siteInfo.browserslist
   }
 
-  function resolveLocalCommand(command) {
-    if (!isLocalSite) {
-      cli.showHelp()
-      report.verbose(`current directory: ${directory}`)
-      return report.panic(
-        `gatsby <${command}> can only be run for a gatsby site. \n` +
-          `Either the current working directory does not contain a valid package.json or ` +
-          `'gatsby' is not specified as a dependency`
-      )
-    }
 
-    try {
-      const cmdPath =
-        resolveCwd.silent(`gatsby/dist/commands/${command}`) ||
-        // Old location of commands
-        resolveCwd.silent(`gatsby/dist/utils/${command}`)
-      if (!cmdPath)
-        return report.panic(
-          `There was a problem loading the local ${command} command. Gatsby may not be installed. Perhaps you need to run "npm install"?`
-        )
-
-      report.verbose(`loading local command from: ${cmdPath}`)
-      return require(cmdPath)
-    } catch (err) {
-      cli.showHelp()
-      return report.panic(
-        `There was a problem loading the local ${command} command. Gatsby may not be installed. Perhaps you need to run "npm install"?`,
-        err
-      )
-    }
-  }
 
   function getCommandHandler(command, handler) {
     return argv => {
@@ -76,14 +87,17 @@ function buildLocalCommands(cli, isLocalSite) {
       process.env.gatsby_executing_command = command
       report.verbose(`set gatsby_executing_command: "${command}"`)
 
-      let localCmd = resolveLocalCommand(command)
+      let localCmd = resolveLocalCommand(command, isLocalSite)
       // if themes option is present
+      let starterThemePaths
       if (argv.t) {
-        localCmd = resolveLocalCommand('develop-themes')
+        localCmd = resolveLocalCommand('develop-themes', isLocalSite)
+        starterThemePaths = getThemePaths(directory)
       }
 
+
       let parentDirectory = path.resolve('.')
-      let args = { ...argv, ...siteInfo, useYarn, parentDirectory }
+      let args = { ...argv, ...siteInfo, useYarn, parentDirectory, starterThemePaths }
 
       report.verbose(`running command: ${command}`)
       return handler ? handler(args, localCmd) : localCmd(args)
