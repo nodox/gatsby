@@ -77,6 +77,11 @@ function buildLocalCommands(cli, isLocalSite) {
       report.verbose(`set gatsby_executing_command: "${command}"`)
 
       let localCmd = resolveLocalCommand(command)
+      // if themes option is present
+      if (argv.t) {
+        localCmd = resolveLocalCommand('develop-themes')
+      }
+
       let parentDirectory = path.resolve('.')
       let args = { ...argv, ...siteInfo, useYarn, parentDirectory }
 
@@ -113,6 +118,11 @@ function buildLocalCommands(cli, isLocalSite) {
           type: `boolean`,
           describe: `Use HTTPS. See https://www.gatsbyjs.org/docs/local-https/ as a guide`,
         })
+        .option(`t`, {
+          alias: `themes`,
+          type: `boolean`,
+          describe: `Enable theme support`,
+        })
         .option(`c`, {
           alias: `cert-file`,
           type: `string`,
@@ -127,6 +137,9 @@ function buildLocalCommands(cli, isLocalSite) {
         }),
     handler: handlerP(
       getCommandHandler(`develop`, (args, cmd) => {
+        // cmd: yields module.exports from commands folder
+        // args: cli arguments
+
         process.env.NODE_ENV = process.env.NODE_ENV || `development`
         cmd(args)
         // Return an empty promise to prevent handlerP from exiting early.
