@@ -62,9 +62,23 @@ function resolveLocalCommand(command, isLocalSite) {
   }
 }
 
-function buildLocalCommands(cli, isLocalSite) {
-  const defaultHost = `localhost`
+// function buildLocalCommands(cli, isLocalSite) {
+//   const defaultHost = `localhost`
+//   let directory = path.resolve('.')
+//
+//   let siteInfo = { directory, browserslist: DEFAULT_BROWSERS }
+//   const useYarn = fs.existsSync(path.join(directory, `yarn.lock`))
+//   if (isLocalSite) {
+//     const json = require(path.join(directory, `package.json`))
+//     siteInfo.sitePackageJson = json
+//     siteInfo.browserslist = json.browserslist || siteInfo.browserslist
+//   }
+// }
+
+function getCommandHandler(command, handler) {
   let directory = path.resolve('.')
+  let isLocalSite = isLocalGatsbySite()
+
 
   let siteInfo = { directory, browserslist: DEFAULT_BROWSERS }
   const useYarn = fs.existsSync(path.join(directory, `yarn.lock`))
@@ -74,35 +88,76 @@ function buildLocalCommands(cli, isLocalSite) {
     siteInfo.browserslist = json.browserslist || siteInfo.browserslist
   }
 
+  return argv => {
+    report.setVerbose(!!argv.verbose)
+    report.setNoColor(!!argv.noColor)
 
+    process.env.gatsby_log_level = argv.verbose ? `verbose` : `normal`
+    report.verbose(`set gatsby_log_level: "${process.env.gatsby_log_level}"`)
 
-  function getCommandHandler(command, handler) {
-    return argv => {
-      report.setVerbose(!!argv.verbose)
-      report.setNoColor(!!argv.noColor)
+    process.env.gatsby_executing_command = command
+    report.verbose(`set gatsby_executing_command: "${command}"`)
 
-      process.env.gatsby_log_level = argv.verbose ? `verbose` : `normal`
-      report.verbose(`set gatsby_log_level: "${process.env.gatsby_log_level}"`)
-
-      process.env.gatsby_executing_command = command
-      report.verbose(`set gatsby_executing_command: "${command}"`)
-
-      let localCmd = resolveLocalCommand(command, isLocalSite)
-      // if themes option is present
-      let starterThemePaths
-      if (argv.t) {
-        localCmd = resolveLocalCommand('develop-themes', isLocalSite)
-        starterThemePaths = getThemePaths(directory)
-      }
-
-
-      let parentDirectory = path.resolve('.')
-      let args = { ...argv, ...siteInfo, useYarn, parentDirectory, starterThemePaths }
-
-      report.verbose(`running command: ${command}`)
-      return handler ? handler(args, localCmd) : localCmd(args)
+    let localCmd = resolveLocalCommand(command, isLocalSite)
+    // if themes option is present
+    let starterThemePaths
+    if (argv.t) {
+      localCmd = resolveLocalCommand('develop-themes', isLocalSite)
+      starterThemePaths = getThemePaths(directory)
     }
+
+
+    let parentDirectory = path.resolve('.')
+    let args = { ...argv, ...siteInfo, useYarn, parentDirectory, starterThemePaths }
+
+    report.verbose(`running command: ${command}`)
+    return handler ? handler(args, localCmd) : localCmd(args)
   }
+}
+
+function isLocalGatsbySite() {
+  let inGatsbySite = false
+  try {
+    let { dependencies, devDependencies } = require(path.resolve(
+      `./package.json`
+    ))
+    inGatsbySite =
+      (dependencies && dependencies.gatsby) ||
+      (devDependencies && devDependencies.gatsby)
+  } catch (err) {
+    /* ignore */
+  }
+  return inGatsbySite
+}
+
+module.exports = (argv, handlers) => {
+  let cli = yargs()
+  let isLocalSite = isLocalGatsbySite()
+  const defaultHost = `localhost`
+
+
+  cli
+    .usage(`Usage: $0 <command> [options]`)
+    .alias(`h`, `help`)
+    .alias(`v`, `version`)
+    .option(`verbose`, {
+      default: false,
+      type: `boolean`,
+      describe: `Turn on verbose output`,
+      global: true,
+    })
+    .option(`no-color`, {
+      default: false,
+      type: `boolean`,
+      describe: `Turn off the color in output`,
+      global: true,
+    })
+
+
+
+  // buildLocalCommands(cli, isLocalSite)
+
+
 
   cli.command({
     command: `develop`,
@@ -209,48 +264,6 @@ function buildLocalCommands(cli, isLocalSite) {
 
     handler: getCommandHandler(`serve`),
   })
-
-}
-
-function isLocalGatsbySite() {
-  let inGatsbySite = false
-  try {
-    let { dependencies, devDependencies } = require(path.resolve(
-      `./package.json`
-    ))
-    inGatsbySite =
-      (dependencies && dependencies.gatsby) ||
-      (devDependencies && devDependencies.gatsby)
-  } catch (err) {
-    /* ignore */
-  }
-  return inGatsbySite
-}
-
-module.exports = (argv, handlers) => {
-  let cli = yargs()
-  let isLocalSite = isLocalGatsbySite()
-
-  cli
-    .usage(`Usage: $0 <command> [options]`)
-    .alias(`h`, `help`)
-    .alias(`v`, `version`)
-    .option(`verbose`, {
-      default: false,
-      type: `boolean`,
-      describe: `Turn on verbose output`,
-      global: true,
-    })
-    .option(`no-color`, {
-      default: false,
-      type: `boolean`,
-      describe: `Turn off the color in output`,
-      global: true,
-    })
-
-
-
-  buildLocalCommands(cli, isLocalSite)
 
 
   cli.command({
