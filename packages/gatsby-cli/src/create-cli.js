@@ -30,9 +30,9 @@ async function getThemePaths(directory) {
   return paths
 }
 
-function resolveLocalCommand(command, isLocalSite) {
+function resolveLocalCommand(command, directory) {
+  let isLocalSite = isLocalGatsbySite()
   if (!isLocalSite) {
-    cli.showHelp()
     report.verbose(`current directory: ${directory}`)
     return report.panic(
       `gatsby <${command}> can only be run for a gatsby site. \n` +
@@ -54,7 +54,6 @@ function resolveLocalCommand(command, isLocalSite) {
     report.verbose(`loading local command from: ${cmdPath}`)
     return require(cmdPath)
   } catch (err) {
-    cli.showHelp()
     return report.panic(
       `There was a problem loading the local ${command} command. Gatsby may not be installed. Perhaps you need to run "npm install"?`,
       err
@@ -85,11 +84,11 @@ function getCommandHandler(command, handler) {
     process.env.gatsby_executing_command = command
     report.verbose(`set gatsby_executing_command: "${command}"`)
 
-    let localCmd = resolveLocalCommand(command, isLocalSite)
+    let localCmd = resolveLocalCommand(command, directory)
     // if themes option is present
     let starterThemePaths
     if (argv.t) {
-      localCmd = resolveLocalCommand('develop-themes', isLocalSite)
+      localCmd = resolveLocalCommand('develop-themes', directory)
       starterThemePaths = getThemePaths(directory)
     }
 
@@ -139,12 +138,6 @@ module.exports = (argv, handlers) => {
       describe: `Turn off the color in output`,
       global: true,
     })
-
-
-
-  // buildLocalCommands(cli, isLocalSite)
-
-
 
   cli.command({
     command: `develop`,
