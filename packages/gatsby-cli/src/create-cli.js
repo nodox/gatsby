@@ -61,10 +61,15 @@ function resolveLocalCommand(command, directory) {
   }
 }
 
-function getCommandHandler(command, handler) {
-  let directory = path.resolve('.')
-  let isLocalSite = isLocalGatsbySite()
 
+
+
+function composeStarterArgs(args, starterPath) {
+  // get args needed for a starter
+
+  let isLocalSite = isLocalGatsbySite()
+  let parentDirectory = path.resolve('.')
+  let directory = starterPath
 
   let siteInfo = { directory, browserslist: DEFAULT_BROWSERS }
   const useYarn = fs.existsSync(path.join(directory, `yarn.lock`))
@@ -73,6 +78,14 @@ function getCommandHandler(command, handler) {
     siteInfo.sitePackageJson = json
     siteInfo.browserslist = json.browserslist || siteInfo.browserslist
   }
+
+  let starterArgs = { ...args, ...siteInfo, useYarn, parentDirectory }
+  return starterArgs
+}
+
+
+function getCommandHandler(command, handler) {
+  let directory = path.resolve('.')
 
   return argv => {
     report.setVerbose(!!argv.verbose)
@@ -92,9 +105,7 @@ function getCommandHandler(command, handler) {
       starterThemePaths = getThemePaths(directory)
     }
 
-
-    let parentDirectory = path.resolve('.')
-    let args = { ...argv, ...siteInfo, useYarn, parentDirectory, starterThemePaths }
+    let args = composeStarterArgs(argv, directory)
 
     report.verbose(`running command: ${command}`)
     return handler ? handler(args, localCmd) : localCmd(args)
