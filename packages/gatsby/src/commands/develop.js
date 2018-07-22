@@ -23,6 +23,11 @@ const address = require(`address`)
 const sourceNodes = require(`../utils/source-nodes`)
 const getSslCert = require(`../utils/get-ssl-cert`)
 const path = require(`path`)
+const yaml = require('js-yaml')
+const { spawn } = require('child_process')
+
+
+const DEFAULT_BROWSERS = [`> 1%`, `last 2 versions`, `IE >= 9`]
 
 // const isInteractive = process.stdout.isTTY
 
@@ -43,20 +48,116 @@ rlInterface.on(`SIGINT`, () => {
   process.exit()
 })
 
+
+function isLocalGatsbySite() {
+  let inGatsbySite = false
+  try {
+    let { dependencies, devDependencies } = require(path.resolve(
+      `./package.json`
+    ))
+    inGatsbySite =
+      (dependencies && dependencies.gatsby) ||
+      (devDependencies && devDependencies.gatsby)
+  } catch (err) {
+    /* ignore */
+  }
+  return inGatsbySite
+}
+
+function composeStarterArgs(args, starterPath) {
+  // get args needed for a starter
+
+  let isLocalSite = isLocalGatsbySite()
+  let parentDirectory = path.resolve('.')
+  let directory = starterPath
+
+  let siteInfo = { directory, browserslist: DEFAULT_BROWSERS }
+  const useYarn = fs.existsSync(path.join(directory, `yarn.lock`))
+  if (isLocalSite) {
+    const json = require(path.join(directory, `package.json`))
+    siteInfo.sitePackageJson = json
+    siteInfo.browserslist = json.browserslist || siteInfo.browserslist
+  }
+
+  let starterArgs = { ...args, ...siteInfo, useYarn, parentDirectory }
+  return starterArgs
+}
+
+function getStarterThemesArgs(argv, config, directory) {
+
+  const entries = Object.entries(config.themes)
+  const starterThemesArgs = entries.map((entry, idx) => {
+    const key = entry[0]
+    const starterthemePath = path.resolve(directory, config.themesDirectory, key)
+    return composeStarterArgs(argv, starterthemePath)
+  })
+
+  return starterThemesArgs
+}
+
+function getStarterThemesConfig(directory) {
+  const isThemesConfigPresent = fs.existsSync(path.join(directory, `gatsby-themes.yaml`))
+  if (!isThemesConfigPresent) {
+    return null
+  }
+
+  let gatsbyThemesConfigPath = path.resolve(directory, `gatsby-themes.yaml`)
+  let gatsbyThemesConfig = yaml.safeLoad(fs.readFileSync(gatsbyThemesConfigPath, 'utf8'))
+  return gatsbyThemesConfig
+}
+
+async function syncStarterThemes(program) {
+  if (!process.env.GATSBY_THEMES_CONFIG) return
+
+  const gatsbyThemesConfigPath = process.env.GATSBY_THEMES_CONFIG
+  const gatsbyThemesConfig = yaml.safeLoad(fs.readFileSync(gatsbyThemesConfigPath, 'utf8'))
+
+  const themes = Object.entries(gatsbyThemesConfig['themes'])
+  const activeThemes = themes.filter((item) => item[1].develop === true)
+
+  activeThemes.forEach(entry => {
+    const key = entry[0]
+    const value = entry[1]
+
+    const childConfigChanges = value
+    const childThemeConfigBuffer = new Buffer.from(JSON.stringify(childConfigChanges, null, ' '))
+
+    const childThemeConfigPath = path.resolve(process.env.GATSBY_THEMES_PARENT_DIRECTORY, gatsbyThemesConfig.themesDirectory, key, `theme.json`)
+    const childThemeConfigWritableStream = fs.createWriteStream(childThemeConfigPath)
+
+    childThemeConfigWritableStream.write(childThemeConfigBuffer)
+    childThemeConfigWritableStream.end()
+  })
+}
+
+function spawnDevelopProcess(key, idx, program) {
+  let starterThemeArgs = program.starterThemesManager.starterThemesArgs.find(arg => arg.sitePackageJson.name === key)
+
+  const name = starterThemeArgs.sitePackageJson.name
+  const host = starterThemeArgs.host
+  const port = 9000 + idx
+  printInstructions(name, host, port)
+
+  const env = process.env
+  env['GATSBY_THEMES_PARENT_DIRECTORY'] = path.resolve(starterThemeArgs.parentDirectory)
+  env['GATSBY_THEMES_CONFIG'] = path.resolve(starterThemeArgs.parentDirectory, 'gatsby-themes.yaml')
+
+  return spawn(`yarn run gatsby develop -p ${port}`, {
+    cwd: starterThemeArgs.directory,
+    shell: true,
+    stdio: `inherit`,
+    env: env,
+  })
+}
+
+function printInstructions(name, host, port) {
+  console.log(``);
+  console.log(`Starter theme ${name} running on http://${host}:${port}/ `);
+  console.log(``);
+}
+
 async function startServer(program) {
-  console.log(`============ nodox, develop:`, program);
-  var gatsbyThemesConfigPath = path.resolve(program.parentDirectory, `gatsby-themes.json`)
-  var childThemeConfigPath = path.resolve(program.directory, `theme.json`)
-
-  var gatsbyThemesConfig = await fs.readJson(gatsbyThemesConfigPath)
-
-  var childThemeConfig = gatsbyThemesConfig['themes'][gatsbyThemesConfig.defaultTheme]
-  var childThemeConfigWritableStream = fs.createWriteStream(childThemeConfigPath)
-  var childThemeConfigBuffer = new Buffer.from(JSON.stringify(childThemeConfig))
-
-  childThemeConfigWritableStream.write(childThemeConfigBuffer)
-  childThemeConfigWritableStream.end()
-
+  await syncStarterThemes(program)
 
   const directory = program.directory
   const directoryPath = withBasePath(directory)
@@ -248,53 +349,31 @@ async function startServer(program) {
     }
   })
 
-  const listener2 = server.listen(1738, program.host, err => {
-    if (err) {
-      if (err.code === `EADDRINUSE`) {
-        // eslint-disable-next-line max-len
-        report.panic(
-          `Unable to start Gatsby on port ${
-            program.port
-          } as there's already a process listing on that port.`
-        )
-        return
-      }
-
-      report.panic(`There was a problem starting the development server`, err)
-    }
-  })
 
   // Register watcher that rebuilds index.html every time html.js changes.
   const watchGlobs = [`src/html.js`, `plugins/**/gatsby-ssr.js`].map(path =>
     directoryPath(path)
   )
 
-  chokidar.watch(gatsbyThemesConfigPath).on(`change`, async () => {
-    console.log('====== nodox, gatsby-themes.json changes');
+  if (!!process.env.GATSBY_THEMES_CONFIG) {
 
-    var updatedGatsbyThemesConfig = await fs.readJson(gatsbyThemesConfigPath)
-    console.log('====== nodox, theme change: ', updatedGatsbyThemesConfig);
-
-    var updatedChildThemeConfig = updatedGatsbyThemesConfig['themes'][updatedGatsbyThemesConfig.defaultTheme]
-    var updatedChildThemeConfigWritableStream = fs.createWriteStream(childThemeConfigPath)
-    var updatedChildThemeConfigBuffer = new Buffer.from(JSON.stringify(updatedChildThemeConfig))
-
-    updatedChildThemeConfigWritableStream.write(updatedChildThemeConfigBuffer)
-    updatedChildThemeConfigWritableStream.end()
-
-    await createIndexHtml()
-    io.to(`clients`).emit(`reload`)
-  })
+    chokidar.watch(process.env.GATSBY_THEMES_CONFIG).on(`change`, async () => {
+      await syncStarterThemes(program)
+      await createIndexHtml()
+      io.to(`clients`).emit(`reload`)
+    })
+  }
 
   chokidar.watch(watchGlobs).on(`change`, async () => {
     await createIndexHtml()
     io.to(`clients`).emit(`reload`)
   })
 
-  return [compiler, listener, listener2]
+  return [compiler, listener]
 }
 
-module.exports = async (program: any) => {
+async function startDevelop(program) {
+
   const detect = require(`detect-port`)
   const port =
     typeof program.port === `string` ? parseInt(program.port, 10) : program.port
@@ -490,4 +569,37 @@ module.exports = async (program: any) => {
     // )
     // }
   })
+}
+
+async function startDevelopEnabledThemes(program) {
+  let gatsbyThemesConfig = program.starterThemesManager['config']
+  const themes = Object.entries(gatsbyThemesConfig['themes'])
+  const activeThemes = themes.filter((item) => item[1].develop === true)
+
+  activeThemes.forEach((entry, idx) => {
+    const key = entry[0]
+    const value = entry[1]
+
+    syncStarterThemes(key, value, program)
+    spawnDevelopProcess(key, idx, program)
+  })
+}
+
+module.exports = async (program: any) => {
+
+  if (program.enabledThemes) {
+
+    const config = getStarterThemesConfig(program.directory)
+    const starterThemesArgs = getStarterThemesArgs(program, config, program.directory)
+
+    program.starterThemesManager = {
+      config: config,
+      starterThemesArgs: starterThemesArgs,
+    }
+
+    startDevelopEnabledThemes(program)
+  } else {
+    startDevelop(program)
+  }
+
 }

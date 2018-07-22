@@ -4,6 +4,8 @@ const yargs = require(`yargs`)
 const report = require(`./reporter`)
 const envinfo = require(`envinfo`)
 const fs = require(`fs-extra`)
+const yaml = require('js-yaml')
+
 
 const DEFAULT_BROWSERS = [`> 1%`, `last 2 versions`, `IE >= 9`]
 
@@ -14,21 +16,7 @@ const handlerP = fn => (...args) => {
   )
 }
 
-async function getThemePaths(directory) {
-  const isThemesConfigPresent = fs.existsSync(path.join(directory, `gatsby-themes.json`))
-  if (!isThemesConfigPresent) {
-    return null
-  }
 
-  let gatsbyThemesConfigPath = path.resolve(directory, `gatsby-themes.json`)
-  let gatsbyThemesConfig = await fs.readJson(gatsbyThemesConfigPath)
-  let themes = Object.keys(gatsbyThemesConfig.themes)
-  let paths = themes.map(name => {
-    let themePath = path.resolve('.', gatsbyThemesConfig.themeDirectory, name)
-    return themePath
-  })
-  return paths
-}
 
 function resolveLocalCommand(command, directory) {
   let isLocalSite = isLocalGatsbySite()
@@ -84,6 +72,7 @@ function composeStarterArgs(args, starterPath) {
 }
 
 
+
 function getCommandHandler(command, handler) {
   let directory = path.resolve('.')
 
@@ -97,15 +86,9 @@ function getCommandHandler(command, handler) {
     process.env.gatsby_executing_command = command
     report.verbose(`set gatsby_executing_command: "${command}"`)
 
-    let localCmd = resolveLocalCommand(command, directory)
-    // if themes option is present
-    let starterThemePaths
-    if (argv.t) {
-      localCmd = resolveLocalCommand('develop-themes', directory)
-      starterThemePaths = getThemePaths(directory)
-    }
-
     let args = composeStarterArgs(argv, directory)
+
+    let localCmd = resolveLocalCommand(command, directory)
 
     report.verbose(`running command: ${command}`)
     return handler ? handler(args, localCmd) : localCmd(args)
@@ -178,10 +161,9 @@ module.exports = (argv, handlers) => {
           type: `boolean`,
           describe: `Use HTTPS. See https://www.gatsbyjs.org/docs/local-https/ as a guide`,
         })
-        .option(`t`, {
-          alias: `themes`,
+        .option(`enabled-themes`, {
           type: `boolean`,
-          describe: `Enable theme support`,
+          describe: `Develop using themes config`,
         })
         .option(`c`, {
           alias: `cert-file`,
@@ -222,6 +204,13 @@ module.exports = (argv, handlers) => {
         type: `boolean`,
         default: false,
         describe: `Build site without uglifying JS bundles (for debugging).`,
+      }).option(`enabled-themes`, {
+        type: `boolean`,
+        default: false,
+        describe: `Build all themes from the config.`,
+      }).option(`copy-theme`, {
+        type: `string`,
+        describe: `Copy the target theme into parent static folder.`,
       }),
     handler: handlerP(
       getCommandHandler(`build`, (args, cmd) => {
