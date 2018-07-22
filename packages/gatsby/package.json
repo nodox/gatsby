@@ -40,6 +40,7 @@
     "devcert-san": "^0.3.3",
     "domready": "^1.0.8",
     "dotenv": "^4.0.0",
+    "execa": "^0.10.0",
     "express": "^4.14.0",
     "express-graphql": "^0.6.6",
     "fast-levenshtein": "~2.0.4",
