@@ -33,42 +33,41 @@ const rlInterface = rl.createInterface({
   output: process.stdout,
 })
 
+const printInstructions = (name, host, port) => {
+  console.log(``);
+  console.log(`Starter theme ${name} running on http://${host}:${port}/ `);
+  console.log(``);
+}
+
 module.exports = async (program: any) => {
 
-
-  let starter_one = spawn('yarn run gatsby develop -p 9000', {
-    cwd: program.starterThemePaths[0].directory,
-    shell: true,
-    stdio: `inherit`,
-  });
-
-  let starter_two = spawn('yarn run gatsby develop -p 9001', {
-    cwd: program.starterThemePaths[1].directory,
-    shell: true,
-    stdio: `inherit`,
-  });
-
-
-  starter_one.on('close', (code, signal) => {
-    console.log(
-      `starter one child process terminated due to receipt of signal ${signal}`);
-  });
-
-  starter_two.on('close', (code, signal) => {
-    console.log(
-      `starter two child process terminated due to receipt of signal ${signal}`);
-  });
-
+  let starterThemesProcesses
 
   // Quit immediately on hearing ctrl-c
-  rlInterface.on(`SIGINT`, () => {
+  // rlInterface.on(`line`, () => {
+  //   console.log(`Cluster termination initiated. Killing starter theme processes.`);
+  // })
 
-    starter_one.kill()
-    starter_two.kill()
-    process.exit()
+
+  starterThemesProcesses = program.starterThemePaths.map((themeProgram, idx) => {
+    console.log(`Starting process: ${themeProgram.sitePackageJson.name}`);
+
+    const name = themeProgram.sitePackageJson.name
+    const host = themeProgram.host
+    const port = 9000 + idx
+    printInstructions(name, host, port)
+
+    const env = process.env
+    env['GATSBY_THEMES_CONFIG'] = path.resolve(program.parentDirectory)
+
+    return spawn(`yarn run gatsby develop -p ${port}`, {
+      cwd: themeProgram.directory,
+      shell: true,
+      stdio: `inherit`,
+      env: env,
+    });
   })
 
 
-  return;
 
 }

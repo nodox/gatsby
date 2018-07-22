@@ -43,20 +43,27 @@ rlInterface.on(`SIGINT`, () => {
   process.exit()
 })
 
+async function syncStarterThemes(program) {
+  // write new changes to the target child theme config
+  console.log('GATSBY_THEMES_CONFIG: ', process.env.GATSBY_THEMES_CONFIG );
+  const gatsbyThemesConfigPath = path.resolve(process.env.GATSBY_THEMES_CONFIG, `gatsby-themes.json`)
+  const gatsbyThemesConfig = await fs.readJson(gatsbyThemesConfigPath)
+
+  const themes = Object.keys(gatsbyThemesConfig['themes'])
+  themes.map(key => {
+    const childConfigChanges = gatsbyThemesConfig['themes'][key]
+    const childThemeConfigBuffer = new Buffer.from(JSON.stringify(childConfigChanges))
+
+    const childThemeConfigPath = path.resolve(process.env.GATSBY_THEMES_CONFIG, gatsbyThemesConfig.themeDirectory, key, `theme.json`)
+    const childThemeConfigWritableStream = fs.createWriteStream(childThemeConfigPath)
+
+    childThemeConfigWritableStream.write(childThemeConfigBuffer)
+    childThemeConfigWritableStream.end()
+  })
+}
+
 async function startServer(program) {
-  console.log(`============ nodox, develop:`, program);
-  var gatsbyThemesConfigPath = path.resolve(program.parentDirectory, `gatsby-themes.json`)
-  var childThemeConfigPath = path.resolve(program.directory, `theme.json`)
-
-  var gatsbyThemesConfig = await fs.readJson(gatsbyThemesConfigPath)
-
-  var childThemeConfig = gatsbyThemesConfig['themes'][gatsbyThemesConfig.defaultTheme]
-  var childThemeConfigWritableStream = fs.createWriteStream(childThemeConfigPath)
-  var childThemeConfigBuffer = new Buffer.from(JSON.stringify(childThemeConfig))
-
-  childThemeConfigWritableStream.write(childThemeConfigBuffer)
-  childThemeConfigWritableStream.end()
-
+  await syncStarterThemes(program)
 
   const directory = program.directory
   const directoryPath = withBasePath(directory)
@@ -248,40 +255,17 @@ async function startServer(program) {
     }
   })
 
-  const listener2 = server.listen(1738, program.host, err => {
-    if (err) {
-      if (err.code === `EADDRINUSE`) {
-        // eslint-disable-next-line max-len
-        report.panic(
-          `Unable to start Gatsby on port ${
-            program.port
-          } as there's already a process listing on that port.`
-        )
-        return
-      }
-
-      report.panic(`There was a problem starting the development server`, err)
-    }
-  })
 
   // Register watcher that rebuilds index.html every time html.js changes.
   const watchGlobs = [`src/html.js`, `plugins/**/gatsby-ssr.js`].map(path =>
     directoryPath(path)
   )
 
+
+  const gatsbyThemesConfigPath = path.resolve(process.env.GATSBY_THEMES_CONFIG, `gatsby-themes.json`)
+
   chokidar.watch(gatsbyThemesConfigPath).on(`change`, async () => {
-    console.log('====== nodox, gatsby-themes.json changes');
-
-    var updatedGatsbyThemesConfig = await fs.readJson(gatsbyThemesConfigPath)
-    console.log('====== nodox, theme change: ', updatedGatsbyThemesConfig);
-
-    var updatedChildThemeConfig = updatedGatsbyThemesConfig['themes'][updatedGatsbyThemesConfig.defaultTheme]
-    var updatedChildThemeConfigWritableStream = fs.createWriteStream(childThemeConfigPath)
-    var updatedChildThemeConfigBuffer = new Buffer.from(JSON.stringify(updatedChildThemeConfig))
-
-    updatedChildThemeConfigWritableStream.write(updatedChildThemeConfigBuffer)
-    updatedChildThemeConfigWritableStream.end()
-
+    await syncStarterThemes(program)
     await createIndexHtml()
     io.to(`clients`).emit(`reload`)
   })
@@ -291,7 +275,7 @@ async function startServer(program) {
     io.to(`clients`).emit(`reload`)
   })
 
-  return [compiler, listener, listener2]
+  return [compiler, listener]
 }
 
 module.exports = async (program: any) => {
