@@ -14,14 +14,14 @@ const handlerP = fn => (...args) => {
   )
 }
 
-async function getThemePaths(directory) {
+function getThemePaths(directory) {
   const isThemesConfigPresent = fs.existsSync(path.join(directory, `gatsby-themes.json`))
   if (!isThemesConfigPresent) {
     return null
   }
 
   let gatsbyThemesConfigPath = path.resolve(directory, `gatsby-themes.json`)
-  let gatsbyThemesConfig = await fs.readJson(gatsbyThemesConfigPath)
+  let gatsbyThemesConfig = fs.readJsonSync(gatsbyThemesConfigPath)
   let themes = Object.keys(gatsbyThemesConfig.themes)
   let paths = themes.map(name => {
     let themePath = path.resolve('.', gatsbyThemesConfig.themeDirectory, name)
@@ -97,15 +97,26 @@ function getCommandHandler(command, handler) {
     process.env.gatsby_executing_command = command
     report.verbose(`set gatsby_executing_command: "${command}"`)
 
+    let args = composeStarterArgs(argv, directory)
+
     let localCmd = resolveLocalCommand(command, directory)
     // if themes option is present
     let starterThemePaths
     if (argv.t) {
       localCmd = resolveLocalCommand('develop-themes', directory)
       starterThemePaths = getThemePaths(directory)
-    }
 
-    let args = composeStarterArgs(argv, directory)
+      let starterData = starterThemePaths.map((path, idx) => {
+        let data = composeStarterArgs(argv, path)
+
+        data.p = parseInt(data.p) + idx
+        data.port = parseInt(data.port) + idx
+
+        return data
+      })
+
+      args.starterThemePaths = [...starterData]
+    }
 
     report.verbose(`running command: ${command}`)
     return handler ? handler(args, localCmd) : localCmd(args)
