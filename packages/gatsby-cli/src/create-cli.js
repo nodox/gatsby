@@ -4,6 +4,8 @@ const yargs = require(`yargs`)
 const report = require(`./reporter`)
 const envinfo = require(`envinfo`)
 const fs = require(`fs-extra`)
+const yaml = require('js-yaml')
+
 
 const DEFAULT_BROWSERS = [`> 1%`, `last 2 versions`, `IE >= 9`]
 
@@ -15,16 +17,17 @@ const handlerP = fn => (...args) => {
 }
 
 function getThemePaths(directory) {
-  const isThemesConfigPresent = fs.existsSync(path.join(directory, `gatsby-themes.json`))
+  const isThemesConfigPresent = fs.existsSync(path.join(directory, `gatsby-themes.yaml`))
   if (!isThemesConfigPresent) {
     return null
   }
 
-  let gatsbyThemesConfigPath = path.resolve(directory, `gatsby-themes.json`)
-  let gatsbyThemesConfig = fs.readJsonSync(gatsbyThemesConfigPath)
+  let gatsbyThemesConfigPath = path.resolve(directory, `gatsby-themes.yaml`)
+  let gatsbyThemesConfig = yaml.safeLoad(fs.readFileSync(gatsbyThemesConfigPath, 'utf8'))
   let themes = Object.keys(gatsbyThemesConfig.themes)
+
   let paths = themes.map(name => {
-    let themePath = path.resolve('.', gatsbyThemesConfig.themeDirectory, name)
+    let themePath = path.resolve('.', gatsbyThemesConfig.themesDirectory, name)
     return themePath
   })
   return paths

@@ -23,6 +23,7 @@ const address = require(`address`)
 const sourceNodes = require(`../utils/source-nodes`)
 const getSslCert = require(`../utils/get-ssl-cert`)
 const path = require(`path`)
+const yaml = require('js-yaml')
 
 // const isInteractive = process.stdout.isTTY
 
@@ -45,7 +46,9 @@ rlInterface.on(`SIGINT`, () => {
 
 async function syncStarterThemes(program) {
   // write new changes to the target child theme config
-  console.log('GATSBY_THEMES_CONFIG: ', process.env.GATSBY_THEMES_CONFIG );
+  console.log('GATSBY_THEMES_CONFIG: ', process.env.GATSBY_THEMES_CONFIG);
+  if (!!process.env.GATSBY_THEMES_CONFIG) return
+
   const gatsbyThemesConfigPath = path.resolve(process.env.GATSBY_THEMES_CONFIG, `gatsby-themes.json`)
   const gatsbyThemesConfig = await fs.readJson(gatsbyThemesConfigPath)
 
@@ -261,14 +264,15 @@ async function startServer(program) {
     directoryPath(path)
   )
 
+  if (!!process.env.GATSBY_THEMES_CONFIG) {
+    const gatsbyThemesConfigPath = path.resolve(process.env.GATSBY_THEMES_CONFIG, `gatsby-themes.json`)
 
-  const gatsbyThemesConfigPath = path.resolve(process.env.GATSBY_THEMES_CONFIG, `gatsby-themes.json`)
-
-  chokidar.watch(gatsbyThemesConfigPath).on(`change`, async () => {
-    await syncStarterThemes(program)
-    await createIndexHtml()
-    io.to(`clients`).emit(`reload`)
-  })
+    chokidar.watch(gatsbyThemesConfigPath).on(`change`, async () => {
+      await syncStarterThemes(program)
+      await createIndexHtml()
+      io.to(`clients`).emit(`reload`)
+    })
+  }
 
   chokidar.watch(watchGlobs).on(`change`, async () => {
     await createIndexHtml()
