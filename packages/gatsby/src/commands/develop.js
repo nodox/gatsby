@@ -45,19 +45,17 @@ rlInterface.on(`SIGINT`, () => {
 })
 
 async function syncStarterThemes(program) {
-  // write new changes to the target child theme config
-  console.log('GATSBY_THEMES_CONFIG: ', process.env.GATSBY_THEMES_CONFIG);
-  if (!!process.env.GATSBY_THEMES_CONFIG) return
+  if (!process.env.GATSBY_THEMES_CONFIG) return
 
-  const gatsbyThemesConfigPath = path.resolve(process.env.GATSBY_THEMES_CONFIG, `gatsby-themes.json`)
-  const gatsbyThemesConfig = await fs.readJson(gatsbyThemesConfigPath)
+  const gatsbyThemesConfigPath = process.env.GATSBY_THEMES_CONFIG
+  const gatsbyThemesConfig = yaml.safeLoad(fs.readFileSync(gatsbyThemesConfigPath, 'utf8'))
 
   const themes = Object.keys(gatsbyThemesConfig['themes'])
   themes.map(key => {
     const childConfigChanges = gatsbyThemesConfig['themes'][key]
-    const childThemeConfigBuffer = new Buffer.from(JSON.stringify(childConfigChanges))
+    const childThemeConfigBuffer = new Buffer.from(JSON.stringify(childConfigChanges, null, ' '))
 
-    const childThemeConfigPath = path.resolve(process.env.GATSBY_THEMES_CONFIG, gatsbyThemesConfig.themeDirectory, key, `theme.json`)
+    const childThemeConfigPath = path.resolve(process.env.GATSBY_THEMES_PARENT_DIRECTORY, gatsbyThemesConfig.themesDirectory, key, `theme.json`)
     const childThemeConfigWritableStream = fs.createWriteStream(childThemeConfigPath)
 
     childThemeConfigWritableStream.write(childThemeConfigBuffer)
@@ -265,9 +263,8 @@ async function startServer(program) {
   )
 
   if (!!process.env.GATSBY_THEMES_CONFIG) {
-    const gatsbyThemesConfigPath = path.resolve(process.env.GATSBY_THEMES_CONFIG, `gatsby-themes.json`)
 
-    chokidar.watch(gatsbyThemesConfigPath).on(`change`, async () => {
+    chokidar.watch(process.env.GATSBY_THEMES_CONFIG).on(`change`, async () => {
       await syncStarterThemes(program)
       await createIndexHtml()
       io.to(`clients`).emit(`reload`)

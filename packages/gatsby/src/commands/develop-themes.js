@@ -23,9 +23,10 @@ const address = require(`address`)
 const sourceNodes = require(`../utils/source-nodes`)
 const getSslCert = require(`../utils/get-ssl-cert`)
 const path = require(`path`)
-const execa = require('execa');
+const execa = require('execa')
+const { fork, spawn } = require('child_process')
+const yaml = require('js-yaml');
 
-const { fork, spawn } = require('child_process');
 
 
 const rlInterface = rl.createInterface({
@@ -52,13 +53,35 @@ module.exports = async (program: any) => {
   starterThemesProcesses = program.starterThemePaths.map((themeProgram, idx) => {
     console.log(`Starting process: ${themeProgram.sitePackageJson.name}`);
 
+
+    const gatsbyThemesConfigPath = path.resolve('.', 'gatsby-themes.yaml')
+    const gatsbyThemesConfig = yaml.safeLoad(fs.readFileSync(gatsbyThemesConfigPath, 'utf8'))
+
+    const themes = Object.keys(gatsbyThemesConfig['themes'])
+    themes.map(key => {
+      const childConfigChanges = gatsbyThemesConfig['themes'][key]
+      const childThemeConfigBuffer = new Buffer.from(JSON.stringify(childConfigChanges), null, ' ')
+
+      const childThemeConfigPath = path.resolve('.', gatsbyThemesConfig.themesDirectory, key, `theme.json`)
+      const childThemeConfigWritableStream = fs.createWriteStream(childThemeConfigPath)
+
+      childThemeConfigWritableStream.write(childThemeConfigBuffer)
+      childThemeConfigWritableStream.end()
+    })
+
+
     const name = themeProgram.sitePackageJson.name
     const host = themeProgram.host
     const port = 9000 + idx
     printInstructions(name, host, port)
 
+
+
+
     const env = process.env
-    env['GATSBY_THEMES_CONFIG'] = path.resolve(program.parentDirectory)
+    env['GATSBY_THEMES_PARENT_DIRECTORY'] = path.resolve(program.parentDirectory)
+    env['GATSBY_THEMES_CONFIG'] = path.resolve(program.parentDirectory, 'gatsby-themes.yaml')
+
 
     return spawn(`yarn run gatsby develop -p ${port}`, {
       cwd: themeProgram.directory,
