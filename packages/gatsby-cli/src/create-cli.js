@@ -16,28 +16,6 @@ const handlerP = fn => (...args) => {
   )
 }
 
-function getStarterThemesConfig(directory) {
-  const isThemesConfigPresent = fs.existsSync(path.join(directory, `gatsby-themes.yaml`))
-  if (!isThemesConfigPresent) {
-    return null
-  }
-
-  let gatsbyThemesConfigPath = path.resolve(directory, `gatsby-themes.yaml`)
-  let gatsbyThemesConfig = yaml.safeLoad(fs.readFileSync(gatsbyThemesConfigPath, 'utf8'))
-  return gatsbyThemesConfig
-}
-
-function getStarterThemesArgs(argv, config, directory) {
-
-  const entries = Object.entries(config.themes)
-  const starterThemesArgs = entries.map((entry, idx) => {
-    const key = entry[0]
-    const starterthemePath = path.resolve(directory, config.themesDirectory, key)
-    return composeStarterArgs(argv, starterthemePath)
-  })
-
-  return starterThemesArgs
-}
 
 
 function resolveLocalCommand(command, directory) {
@@ -111,16 +89,6 @@ function getCommandHandler(command, handler) {
     let args = composeStarterArgs(argv, directory)
 
     let localCmd = resolveLocalCommand(command, directory)
-    // if themes option is present
-    if (argv.t) {
-      localCmd = resolveLocalCommand('develop-themes', directory)
-
-      let config = getStarterThemesConfig(directory)
-      args.starterThemesManager = {
-        config: config,
-        starterThemesArgs: getStarterThemesArgs(argv, config, directory),
-      }
-    }
 
     report.verbose(`running command: ${command}`)
     return handler ? handler(args, localCmd) : localCmd(args)
@@ -193,10 +161,9 @@ module.exports = (argv, handlers) => {
           type: `boolean`,
           describe: `Use HTTPS. See https://www.gatsbyjs.org/docs/local-https/ as a guide`,
         })
-        .option(`t`, {
-          alias: `themes`,
+        .option(`with-themes`, {
           type: `boolean`,
-          describe: `Enable theme support`,
+          describe: `Develop using themes config`,
         })
         .option(`c`, {
           alias: `cert-file`,

@@ -24,6 +24,10 @@ const sourceNodes = require(`../utils/source-nodes`)
 const getSslCert = require(`../utils/get-ssl-cert`)
 const path = require(`path`)
 const yaml = require('js-yaml')
+const { spawn } = require('child_process')
+
+
+const DEFAULT_BROWSERS = [`> 1%`, `last 2 versions`, `IE >= 9`]
 
 // const isInteractive = process.stdout.isTTY
 
@@ -43,6 +47,64 @@ const rlInterface = rl.createInterface({
 rlInterface.on(`SIGINT`, () => {
   process.exit()
 })
+
+
+function isLocalGatsbySite() {
+  let inGatsbySite = false
+  try {
+    let { dependencies, devDependencies } = require(path.resolve(
+      `./package.json`
+    ))
+    inGatsbySite =
+      (dependencies && dependencies.gatsby) ||
+      (devDependencies && devDependencies.gatsby)
+  } catch (err) {
+    /* ignore */
+  }
+  return inGatsbySite
+}
+
+function composeStarterArgs(args, starterPath) {
+  // get args needed for a starter
+
+  let isLocalSite = isLocalGatsbySite()
+  let parentDirectory = path.resolve('.')
+  let directory = starterPath
+
+  let siteInfo = { directory, browserslist: DEFAULT_BROWSERS }
+  const useYarn = fs.existsSync(path.join(directory, `yarn.lock`))
+  if (isLocalSite) {
+    const json = require(path.join(directory, `package.json`))
+    siteInfo.sitePackageJson = json
+    siteInfo.browserslist = json.browserslist || siteInfo.browserslist
+  }
+
+  let starterArgs = { ...args, ...siteInfo, useYarn, parentDirectory }
+  return starterArgs
+}
+
+function getStarterThemesArgs(argv, config, directory) {
+
+  const entries = Object.entries(config.themes)
+  const starterThemesArgs = entries.map((entry, idx) => {
+    const key = entry[0]
+    const starterthemePath = path.resolve(directory, config.themesDirectory, key)
+    return composeStarterArgs(argv, starterthemePath)
+  })
+
+  return starterThemesArgs
+}
+
+function getStarterThemesConfig(directory) {
+  const isThemesConfigPresent = fs.existsSync(path.join(directory, `gatsby-themes.yaml`))
+  if (!isThemesConfigPresent) {
+    return null
+  }
+
+  let gatsbyThemesConfigPath = path.resolve(directory, `gatsby-themes.yaml`)
+  let gatsbyThemesConfig = yaml.safeLoad(fs.readFileSync(gatsbyThemesConfigPath, 'utf8'))
+  return gatsbyThemesConfig
+}
 
 async function syncStarterThemes(program) {
   if (!process.env.GATSBY_THEMES_CONFIG) return
@@ -66,6 +128,32 @@ async function syncStarterThemes(program) {
     childThemeConfigWritableStream.write(childThemeConfigBuffer)
     childThemeConfigWritableStream.end()
   })
+}
+
+function spawnStarterThemeProcess(key, idx, program) {
+  let starterThemeArgs = program.starterThemesManager.starterThemesArgs.find(arg => arg.sitePackageJson.name === key)
+
+  const name = starterThemeArgs.sitePackageJson.name
+  const host = starterThemeArgs.host
+  const port = 9000 + idx
+  printInstructions(name, host, port)
+
+  const env = process.env
+  env['GATSBY_THEMES_PARENT_DIRECTORY'] = path.resolve(starterThemeArgs.parentDirectory)
+  env['GATSBY_THEMES_CONFIG'] = path.resolve(starterThemeArgs.parentDirectory, 'gatsby-themes.yaml')
+
+  return spawn(`yarn run gatsby develop -p ${port}`, {
+    cwd: starterThemeArgs.directory,
+    shell: true,
+    stdio: `inherit`,
+    env: env,
+  })
+}
+
+function printInstructions(name, host, port) {
+  console.log(``);
+  console.log(`Starter theme ${name} running on http://${host}:${port}/ `);
+  console.log(``);
 }
 
 async function startServer(program) {
@@ -284,7 +372,8 @@ async function startServer(program) {
   return [compiler, listener]
 }
 
-module.exports = async (program: any) => {
+async function startDevelop(program) {
+
   const detect = require(`detect-port`)
   const port =
     typeof program.port === `string` ? parseInt(program.port, 10) : program.port
@@ -480,4 +569,37 @@ module.exports = async (program: any) => {
     // )
     // }
   })
+}
+
+async function startDevelopWithThemes(program) {
+  let gatsbyThemesConfig = program.starterThemesManager['config']
+  const themes = Object.entries(gatsbyThemesConfig['themes'])
+  const activeThemes = themes.filter((item) => item[1].develop === true)
+
+  activeThemes.forEach((entry, idx) => {
+    const key = entry[0]
+    const value = entry[1]
+
+    syncStarterThemes(key, value, program)
+    spawnStarterThemeProcess(key, idx, program)
+  })
+}
+
+module.exports = async (program: any) => {
+
+  if (program.withThemes) {
+
+    const config = getStarterThemesConfig(program.directory)
+    const starterThemesArgs = getStarterThemesArgs(program, config, program.directory)
+
+    program.starterThemesManager = {
+      config: config,
+      starterThemesArgs: starterThemesArgs,
+    }
+
+    startDevelopWithThemes(program)
+  } else {
+    startDevelop(program)
+  }
+
 }
