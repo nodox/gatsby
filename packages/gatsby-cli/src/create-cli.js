@@ -204,6 +204,13 @@ module.exports = (argv, handlers) => {
         type: `boolean`,
         default: false,
         describe: `Build site without uglifying JS bundles (for debugging).`,
+      }).option(`enabled-themes`, {
+        type: `boolean`,
+        default: false,
+        describe: `Build all themes from the config.`,
+      }).option(`copy-theme`, {
+        type: `string`,
+        describe: `Copy the target theme into parent static folder.`,
       }),
     handler: handlerP(
       getCommandHandler(`build`, (args, cmd) => {
