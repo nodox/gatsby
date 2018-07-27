@@ -161,7 +161,7 @@ module.exports = (argv, handlers) => {
           type: `boolean`,
           describe: `Use HTTPS. See https://www.gatsbyjs.org/docs/local-https/ as a guide`,
         })
-        .option(`with-themes`, {
+        .option(`enabled-themes`, {
           type: `boolean`,
           describe: `Develop using themes config`,
         })

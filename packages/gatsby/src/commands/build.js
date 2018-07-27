@@ -94,7 +94,7 @@ function spawnBuildProcess(key, program) {
 
 }
 
-async function buildEnabledThemes(program) {
+async function startBuildEnabledThemes(program) {
   let gatsbyThemesConfig = program.starterThemesManager['config']
   const themes = Object.entries(gatsbyThemesConfig['themes'])
   const activeThemes = themes.filter((item) => item[1].build === true)
@@ -106,7 +106,7 @@ async function buildEnabledThemes(program) {
 
 }
 
-async function buildProject(program) {
+async function startBuild(program) {
   const { graphqlRunner } = await bootstrap(program)
 
   await apiRunnerNode(`onPreBuild`, { graphql: graphqlRunner })
@@ -170,7 +170,7 @@ module.exports = async function build(program: BuildArgs) {
       starterThemesArgs: starterThemesArgs,
     }
 
-    return buildEnabledThemes(program)
+    return startBuildEnabledThemes(program)
   }
 
   if (program.copyTheme) {
@@ -192,7 +192,7 @@ module.exports = async function build(program: BuildArgs) {
 
   }
 
-  await buildProject(program)
+  await startBuild(program)
 
 
 

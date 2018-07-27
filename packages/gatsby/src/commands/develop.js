@@ -130,7 +130,7 @@ async function syncStarterThemes(program) {
   })
 }
 
-function spawnStarterThemeProcess(key, idx, program) {
+function spawnDevelopProcess(key, idx, program) {
   let starterThemeArgs = program.starterThemesManager.starterThemesArgs.find(arg => arg.sitePackageJson.name === key)
 
   const name = starterThemeArgs.sitePackageJson.name
@@ -571,7 +571,7 @@ async function startDevelop(program) {
   })
 }
 
-async function startDevelopWithThemes(program) {
+async function startDevelopEnabledThemes(program) {
   let gatsbyThemesConfig = program.starterThemesManager['config']
   const themes = Object.entries(gatsbyThemesConfig['themes'])
   const activeThemes = themes.filter((item) => item[1].develop === true)
@@ -581,13 +581,13 @@ async function startDevelopWithThemes(program) {
     const value = entry[1]
 
     syncStarterThemes(key, value, program)
-    spawnStarterThemeProcess(key, idx, program)
+    spawnDevelopProcess(key, idx, program)
   })
 }
 
 module.exports = async (program: any) => {
 
-  if (program.withThemes) {
+  if (program.enabledThemes) {
 
     const config = getStarterThemesConfig(program.directory)
     const starterThemesArgs = getStarterThemesArgs(program, config, program.directory)
@@ -597,7 +597,7 @@ module.exports = async (program: any) => {
       starterThemesArgs: starterThemesArgs,
     }
 
-    startDevelopWithThemes(program)
+    startDevelopEnabledThemes(program)
   } else {
     startDevelop(program)
   }
