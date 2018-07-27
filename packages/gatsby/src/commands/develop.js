@@ -50,9 +50,14 @@ async function syncStarterThemes(program) {
   const gatsbyThemesConfigPath = process.env.GATSBY_THEMES_CONFIG
   const gatsbyThemesConfig = yaml.safeLoad(fs.readFileSync(gatsbyThemesConfigPath, 'utf8'))
 
-  const themes = Object.keys(gatsbyThemesConfig['themes'])
-  themes.map(key => {
-    const childConfigChanges = gatsbyThemesConfig['themes'][key]
+  const themes = Object.entries(gatsbyThemesConfig['themes'])
+  const activeThemes = themes.filter((item) => item[1].develop === true)
+
+  activeThemes.forEach(entry => {
+    const key = entry[0]
+    const value = entry[1]
+
+    const childConfigChanges = value
     const childThemeConfigBuffer = new Buffer.from(JSON.stringify(childConfigChanges, null, ' '))
 
     const childThemeConfigPath = path.resolve(process.env.GATSBY_THEMES_PARENT_DIRECTORY, gatsbyThemesConfig.themesDirectory, key, `theme.json`)

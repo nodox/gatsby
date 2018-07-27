@@ -16,7 +16,7 @@ const handlerP = fn => (...args) => {
   )
 }
 
-function getThemePaths(directory) {
+function getStarterThemesConfig(directory) {
   const isThemesConfigPresent = fs.existsSync(path.join(directory, `gatsby-themes.yaml`))
   if (!isThemesConfigPresent) {
     return null
@@ -24,14 +24,21 @@ function getThemePaths(directory) {
 
   let gatsbyThemesConfigPath = path.resolve(directory, `gatsby-themes.yaml`)
   let gatsbyThemesConfig = yaml.safeLoad(fs.readFileSync(gatsbyThemesConfigPath, 'utf8'))
-  let themes = Object.keys(gatsbyThemesConfig.themes)
-
-  let paths = themes.map(name => {
-    let themePath = path.resolve('.', gatsbyThemesConfig.themesDirectory, name)
-    return themePath
-  })
-  return paths
+  return gatsbyThemesConfig
 }
+
+function getStarterThemesArgs(argv, config, directory) {
+
+  const entries = Object.entries(config.themes)
+  const starterThemesArgs = entries.map((entry, idx) => {
+    const key = entry[0]
+    const starterthemePath = path.resolve(directory, config.themesDirectory, key)
+    return composeStarterArgs(argv, starterthemePath)
+  })
+
+  return starterThemesArgs
+}
+
 
 function resolveLocalCommand(command, directory) {
   let isLocalSite = isLocalGatsbySite()
@@ -87,6 +94,7 @@ function composeStarterArgs(args, starterPath) {
 }
 
 
+
 function getCommandHandler(command, handler) {
   let directory = path.resolve('.')
 
@@ -104,21 +112,14 @@ function getCommandHandler(command, handler) {
 
     let localCmd = resolveLocalCommand(command, directory)
     // if themes option is present
-    let starterThemePaths
     if (argv.t) {
       localCmd = resolveLocalCommand('develop-themes', directory)
-      starterThemePaths = getThemePaths(directory)
 
-      let starterData = starterThemePaths.map((path, idx) => {
-        let data = composeStarterArgs(argv, path)
-
-        data.p = parseInt(data.p) + idx
-        data.port = parseInt(data.port) + idx
-
-        return data
-      })
-
-      args.starterThemePaths = [...starterData]
+      let config = getStarterThemesConfig(directory)
+      args.starterThemesManager = {
+        config: config,
+        starterThemesArgs: getStarterThemesArgs(argv, config, directory),
+      }
     }
 
     report.verbose(`running command: ${command}`)

@@ -40,57 +40,58 @@ const printInstructions = (name, host, port) => {
   console.log(``);
 }
 
-module.exports = async (program: any) => {
+const spawnStarterThemeProcess = (key, idx, program) => {
+  let starterThemeArgs = program.starterThemesManager.starterThemesArgs.find(arg => arg.sitePackageJson.name === key)
 
-  let starterThemesProcesses
+  const name = starterThemeArgs.sitePackageJson.name
+  const host = starterThemeArgs.host
+  const port = 9000 + idx
+  printInstructions(name, host, port)
+
+  const env = process.env
+  env['GATSBY_THEMES_PARENT_DIRECTORY'] = path.resolve(starterThemeArgs.parentDirectory)
+  env['GATSBY_THEMES_CONFIG'] = path.resolve(starterThemeArgs.parentDirectory, 'gatsby-themes.yaml')
+
+  return spawn(`yarn run gatsby develop -p ${port}`, {
+    cwd: starterThemeArgs.directory,
+    shell: true,
+    stdio: `inherit`,
+    env: env,
+  })
+}
+
+
+const syncStarterThemes = (key, value, program) => {
+  const gatsbyThemesConfig = program.starterThemesManager['config']
+
+  const childConfigChanges = value
+  const childThemeConfigBuffer = new Buffer.from(JSON.stringify(childConfigChanges), null, ' ')
+
+  const childThemeConfigPath = path.resolve('.', gatsbyThemesConfig.themesDirectory, key, `theme.json`)
+  const childThemeConfigWritableStream = fs.createWriteStream(childThemeConfigPath)
+
+  childThemeConfigWritableStream.write(childThemeConfigBuffer)
+  childThemeConfigWritableStream.end()
+}
+
+module.exports = async (program: any) => {
 
   // Quit immediately on hearing ctrl-c
   // rlInterface.on(`line`, () => {
   //   console.log(`Cluster termination initiated. Killing starter theme processes.`);
   // })
 
+  let gatsbyThemesConfig = program.starterThemesManager['config']
+  const themes = Object.entries(gatsbyThemesConfig['themes'])
+  const activeThemes = themes.filter((item) => item[1].develop === true)
 
-  starterThemesProcesses = program.starterThemePaths.map((themeProgram, idx) => {
-    console.log(`Starting process: ${themeProgram.sitePackageJson.name}`);
+  activeThemes.forEach((entry, idx) => {
+    const key = entry[0]
+    const value = entry[1]
 
-
-    const gatsbyThemesConfigPath = path.resolve('.', 'gatsby-themes.yaml')
-    const gatsbyThemesConfig = yaml.safeLoad(fs.readFileSync(gatsbyThemesConfigPath, 'utf8'))
-
-    const themes = Object.keys(gatsbyThemesConfig['themes'])
-    themes.map(key => {
-      const childConfigChanges = gatsbyThemesConfig['themes'][key]
-      const childThemeConfigBuffer = new Buffer.from(JSON.stringify(childConfigChanges), null, ' ')
-
-      const childThemeConfigPath = path.resolve('.', gatsbyThemesConfig.themesDirectory, key, `theme.json`)
-      const childThemeConfigWritableStream = fs.createWriteStream(childThemeConfigPath)
-
-      childThemeConfigWritableStream.write(childThemeConfigBuffer)
-      childThemeConfigWritableStream.end()
-    })
-
-
-    const name = themeProgram.sitePackageJson.name
-    const host = themeProgram.host
-    const port = 9000 + idx
-    printInstructions(name, host, port)
-
-
-
-
-    const env = process.env
-    env['GATSBY_THEMES_PARENT_DIRECTORY'] = path.resolve(program.parentDirectory)
-    env['GATSBY_THEMES_CONFIG'] = path.resolve(program.parentDirectory, 'gatsby-themes.yaml')
-
-
-    return spawn(`yarn run gatsby develop -p ${port}`, {
-      cwd: themeProgram.directory,
-      shell: true,
-      stdio: `inherit`,
-      env: env,
-    });
+    syncStarterThemes(key, value, program)
+    spawnStarterThemeProcess(key, idx, program)
   })
-
 
 
 }
