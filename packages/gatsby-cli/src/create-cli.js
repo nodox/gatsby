@@ -4,7 +4,6 @@ const yargs = require(`yargs`)
 const report = require(`./reporter`)
 const envinfo = require(`envinfo`)
 const fs = require(`fs-extra`)
-const yaml = require('js-yaml')
 
 
 const DEFAULT_BROWSERS = [`> 1%`, `last 2 versions`, `IE >= 9`]
@@ -19,7 +18,7 @@ const handlerP = fn => (...args) => {
 
 
 function resolveLocalCommand(command, directory) {
-  let isLocalSite = isLocalGatsbySite()
+  let isLocalSite = true
   if (!isLocalSite) {
     report.verbose(`current directory: ${directory}`)
     return report.panic(
@@ -31,9 +30,9 @@ function resolveLocalCommand(command, directory) {
 
   try {
     const cmdPath =
-      resolveCwd.silent(`gatsby/dist/commands/${command}`) ||
+      resolveCwd.silent(`@nodox/gatsby/dist/commands/${command}`) ||
       // Old location of commands
-      resolveCwd.silent(`gatsby/dist/utils/${command}`)
+      resolveCwd.silent(`@nodox/gatsby/dist/utils/${command}`)
     if (!cmdPath)
       return report.panic(
         `There was a problem loading the local ${command} command. Gatsby may not be installed. Perhaps you need to run "npm install"?`
@@ -55,7 +54,7 @@ function resolveLocalCommand(command, directory) {
 function composeStarterArgs(args, starterPath) {
   // get args needed for a starter
 
-  let isLocalSite = isLocalGatsbySite()
+  let isLocalSite = true
   let parentDirectory = path.resolve('.')
   let directory = starterPath
 
@@ -102,8 +101,8 @@ function isLocalGatsbySite() {
       `./package.json`
     ))
     inGatsbySite =
-      (dependencies && dependencies.gatsby) ||
-      (devDependencies && devDependencies.gatsby)
+      (dependencies && dependencies["@nodox/gatsby"]) ||
+      (devDependencies && devDependencies["@nodox/gatsby"])
   } catch (err) {
     /* ignore */
   }
@@ -112,7 +111,7 @@ function isLocalGatsbySite() {
 
 module.exports = (argv, handlers) => {
   let cli = yargs()
-  let isLocalSite = isLocalGatsbySite()
+  let isLocalSite = true
   const defaultHost = `localhost`
 
 

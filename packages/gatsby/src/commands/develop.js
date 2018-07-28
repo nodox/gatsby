@@ -67,7 +67,7 @@ function isLocalGatsbySite() {
 function composeStarterArgs(args, starterPath) {
   // get args needed for a starter
 
-  let isLocalSite = isLocalGatsbySite()
+  let isLocalSite = true
   let parentDirectory = path.resolve('.')
   let directory = starterPath
 
