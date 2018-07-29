@@ -130,13 +130,13 @@ async function syncStarterThemes(program) {
   })
 }
 
-function spawnDevelopProcess(key, idx, program) {
-  let starterThemeArgs = program.starterThemesManager.starterThemesArgs.find(arg => arg.sitePackageJson.name === key)
+function spawnDevelopProcess(key, name, idx, program) {
+  let starterThemeArgs = program.starterThemesManager.starterThemesArgs.find(arg => arg.directory === key)
 
-  const name = starterThemeArgs.sitePackageJson.name
+  const themeName = name
   const host = starterThemeArgs.host
   const port = 9000 + idx
-  printInstructions(name, host, port)
+  printInstructions(themeName, host, port)
 
   const env = process.env
   env['GATSBY_THEMES_PARENT_DIRECTORY'] = path.resolve(starterThemeArgs.parentDirectory)
@@ -573,15 +573,19 @@ async function startDevelop(program) {
 
 async function startDevelopEnabledThemes(program) {
   let gatsbyThemesConfig = program.starterThemesManager['config']
+  let themesDirectory = gatsbyThemesConfig['themesDirectory']
+
   const themes = Object.entries(gatsbyThemesConfig['themes'])
   const activeThemes = themes.filter((item) => item[1].develop === true)
 
   activeThemes.forEach((entry, idx) => {
-    const key = entry[0]
+    const themeName = entry[0]
     const value = entry[1]
 
-    syncStarterThemes(key, value, program)
-    spawnDevelopProcess(key, idx, program)
+    syncStarterThemes(themeName, value, program)
+
+    const themePath = path.join(program.directory, themesDirectory, themeName)
+    spawnDevelopProcess(themePath, themeName, idx, program)
   })
 }
 
