@@ -83,7 +83,7 @@ function getStarterThemesConfig(directory) {
 
 
 function spawnBuildProcess(key, program) {
-  let starterThemeArgs = program.starterThemesManager.starterThemesArgs.find(arg => arg.sitePackageJson.name === key)
+  let starterThemeArgs = program.starterThemesManager.starterThemesArgs.find(arg => arg.directory === key)
 
   return spawn(`yarn run gatsby build`, {
     cwd: starterThemeArgs.directory,
@@ -96,12 +96,16 @@ function spawnBuildProcess(key, program) {
 
 async function startBuildEnabledThemes(program) {
   let gatsbyThemesConfig = program.starterThemesManager['config']
+  let themesDirectory = gatsbyThemesConfig['themesDirectory']
+
   const themes = Object.entries(gatsbyThemesConfig['themes'])
   const activeThemes = themes.filter((item) => item[1].build === true)
 
   activeThemes.forEach((entry, idx) => {
-    const key = entry[0]
-    spawnBuildProcess(key, program)
+    const themeName = entry[0]
+    const themePath = path.join(program.directory, themesDirectory, themeName)
+
+    spawnBuildProcess(themePath, program)
   })
 
 }
