@@ -1,7 +1,7 @@
 {
   "name": "@nodox/gatsby",
   "description": "React.js Static Site Generator",
-  "version": "1.10.1",
+  "version": "1.10.2",
   "author": "Kyle Mathews <mathews.kyle@gmail.com>",
   "bin": {
     "gatsby": "./dist/bin/gatsby.js"
