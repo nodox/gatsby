@@ -186,7 +186,7 @@ module.exports = async function build(program: BuildArgs) {
       starterThemesArgs: starterThemesArgs,
     }
 
-    const key = program.copyTheme
+    const key = path.join(program.directory, program.starterThemesManager.config.themesDirectory, program.copyTheme)
     const theme = program.starterThemesManager.starterThemesArgs.find(arg => arg.directory === key)
 
 
