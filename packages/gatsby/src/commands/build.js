@@ -187,7 +187,7 @@ module.exports = async function build(program: BuildArgs) {
     }
 
     const key = program.copyTheme
-    const theme = program.starterThemesManager.starterThemesArgs.find(arg => arg.sitePackageJson.name === key)
+    const theme = program.starterThemesManager.starterThemesArgs.find(arg => arg.directory === key)
 
 
     const parentDir = path.resolve(`${theme.parentDirectory}`, `public`)
